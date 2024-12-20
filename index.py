@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 # Function to fetch Google search results based on content type
 def fetch_google_results(query, content_type):
-    results = {"images": [], "videos": [], "thumbnails": []}
+    results = {"images": [], "videos": [], "thumbnails": [], "webpages": []}
     headers = {"User-Agent": "Mozilla/5.0"}
     query = query.replace(" ", "+")
     
@@ -43,6 +43,7 @@ def fetch_google_results(query, content_type):
                         if video_id:
                             results["thumbnails"].append(f"https://img.youtube.com/vi/{video_id}/0.jpg")
         
+        # Extract webpage URLs
         else:
             for link in soup.find_all("a", href=True):
                 href = link["href"]
@@ -57,7 +58,7 @@ def fetch_google_results(query, content_type):
 
 # Function to fetch Bing search results based on content type
 def fetch_bing_results(query, content_type):
-    results = {"images": [], "videos": [], "thumbnails": []}
+    results = {"images": [], "videos": [], "thumbnails": [], "webpages": []}
     headers = {"User-Agent": "Mozilla/5.0"}
     query = query.replace(" ", "+")
     
@@ -91,6 +92,7 @@ def fetch_bing_results(query, content_type):
                     if video_id:
                         results["thumbnails"].append(f"https://img.youtube.com/vi/{video_id}/0.jpg")
         
+        # Extract webpage URLs
         else:
             for link in soup.find_all("a", href=True):
                 href = link["href"]
@@ -123,11 +125,12 @@ def search():
             "images": list(set(google_results["images"] + bing_results["images"])),
             "videos": list(set(google_results["videos"] + bing_results["videos"])),
             "thumbnails": list(set(google_results["thumbnails"] + bing_results["thumbnails"])),
+            "webpages": list(set(google_results["webpages"] + bing_results["webpages"])),
         }
         return jsonify(combined_results)
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({"images": [], "videos": [], "thumbnails": []})
+        return jsonify({"images": [], "videos": [], "thumbnails": [], "webpages": []})
 
 if __name__ == "__main__":
     app.run(debug=True)
