@@ -7,7 +7,7 @@ app = Flask(__name__)
 
 # Function to fetch Google search results based on content type
 def fetch_google_results(query, content_type):
-    results = []
+    results = {"images": [], "videos": [], "thumbnails": []}
     headers = {"User-Agent": "Mozilla/5.0"}
     query = query.replace(" ", "+")
     
@@ -23,25 +23,32 @@ def fetch_google_results(query, content_type):
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
         
-        # Extract URLs based on content type
+        # Extract image URLs
         if content_type == "image":
             for img in soup.find_all("img"):
                 img_src = img.get("src")
                 if img_src and img_src.startswith("http"):
-                    results.append(img_src)
+                    results["images"].append(img_src)
+        
+        # Extract video URLs and thumbnails
         elif content_type == "video":
             for link in soup.find_all("a", href=True):
                 href = link["href"]
                 if "url?q=" in href:
                     actual_link = parse_qs(urlparse(href).query)["q"][0]
                     if "youtube.com" in actual_link or "youtu.be" in actual_link:
-                        results.append(actual_link)
+                        results["videos"].append(actual_link)
+                        # Fetch thumbnail for YouTube videos
+                        video_id = parse_qs(urlparse(actual_link).query).get('v', [None])[0]
+                        if video_id:
+                            results["thumbnails"].append(f"https://img.youtube.com/vi/{video_id}/0.jpg")
+        
         else:
             for link in soup.find_all("a", href=True):
                 href = link["href"]
                 if "url?q=" in href:
                     actual_link = parse_qs(urlparse(href).query)["q"][0]
-                    results.append(actual_link)
+                    results["webpages"].append(actual_link)
 
     except Exception as e:
         print(f"Google search failed: {e}")
@@ -50,7 +57,7 @@ def fetch_google_results(query, content_type):
 
 # Function to fetch Bing search results based on content type
 def fetch_bing_results(query, content_type):
-    results = []
+    results = {"images": [], "videos": [], "thumbnails": []}
     headers = {"User-Agent": "Mozilla/5.0"}
     query = query.replace(" ", "+")
     
@@ -66,28 +73,34 @@ def fetch_bing_results(query, content_type):
         response = requests.get(url, headers=headers, timeout=10)
         soup = BeautifulSoup(response.text, "html.parser")
         
-        # Extract URLs based on content type
+        # Extract image URLs
         if content_type == "image":
             for img in soup.find_all("img"):
                 img_src = img.get("src")
                 if img_src and img_src.startswith("http"):
-                    results.append(img_src)
+                    results["images"].append(img_src)
+        
+        # Extract video URLs and thumbnails
         elif content_type == "video":
             for link in soup.find_all("a", href=True):
                 href = link["href"]
                 if "youtube.com" in href or "youtu.be" in href:
-                    results.append(href)
+                    results["videos"].append(href)
+                    # Fetch thumbnail for YouTube videos
+                    video_id = parse_qs(urlparse(href).query).get('v', [None])[0]
+                    if video_id:
+                        results["thumbnails"].append(f"https://img.youtube.com/vi/{video_id}/0.jpg")
+        
         else:
             for link in soup.find_all("a", href=True):
                 href = link["href"]
                 if href.startswith("http"):
-                    results.append(href)
+                    results["webpages"].append(href)
 
     except Exception as e:
         print(f"Bing search failed: {e}")
     
     return results
-
 
 @app.route("/search", methods=["GET"])
 def search():
@@ -106,12 +119,15 @@ def search():
         bing_results = fetch_bing_results(query, content_type)
         
         # Combine and deduplicate results
-        combined_results = list(set(google_results + bing_results))
-        return jsonify({content_type: combined_results})
+        combined_results = {
+            "images": list(set(google_results["images"] + bing_results["images"])),
+            "videos": list(set(google_results["videos"] + bing_results["videos"])),
+            "thumbnails": list(set(google_results["thumbnails"] + bing_results["thumbnails"])),
+        }
+        return jsonify(combined_results)
     except Exception as e:
         print(f"Error: {e}")
-        return jsonify({content_type: []})
-
+        return jsonify({"images": [], "videos": [], "thumbnails": []})
 
 if __name__ == "__main__":
     app.run(debug=True)
