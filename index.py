@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse, parse_qs
 
 app = Flask(__name__)
+CORS(app)  # Enable CORS for all origins
 
 # Function to fetch YouTube video URLs from Google
 def fetch_youtube_results(query):
